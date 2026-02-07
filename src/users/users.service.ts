@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { JoinRequestDto } from './dto/join.request.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,8 +23,12 @@ export class UsersService {
     return `This action returns all users`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: number): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`${id}번 유저를 찾을 수 없습니다.`);
+    }
+    return user;
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
@@ -31,7 +39,8 @@ export class UsersService {
     return `This action removes a #${id} user`;
   }
 
-  async join(email: string, nickname: string, password: string) {
+  async join(data: JoinRequestDto) {
+    const { email, nickname, password } = data;
     const user = await this.usersRepository.findOne({ where: { email } });
     if (user) {
       throw new ConflictException('이미 존재하는 이메일입니다.');
@@ -42,10 +51,22 @@ export class UsersService {
     const newUser = this.usersRepository.create({
       email,
       nickname,
-      password: hashedPassword
+      password: hashedPassword,
     });
     await this.usersRepository.save(newUser);
 
     return true;
+  }
+
+  async findByEmail(email: string) {
+    const user = await this.usersRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'password', 'nickname'],
+    });
+
+    if (!user) {
+      throw new ConflictException('존재하지 않는 이메일입니다.');
+    }
+    return user;
   }
 }
