@@ -13,11 +13,12 @@ import {
 import { UsersService } from './users.service';
 import { JoinRequestDto } from './dto/join.request.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LocalAuthGuard } from '../auth/local-auth.guard';
 import type {  Request as ExpressRequest,  Response as ExpressResponse,} from 'express';
 import { User } from '../common/decorators/user.decorator';
 import {User as UserEntity} from '../users/entities/user.entity';
+import { LoginRequestDto } from '../auth/dto/login.request.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -31,6 +32,7 @@ export class UsersController {
   }
 
   @ApiOperation({ summary: '로그인' })
+  @ApiBody({ type: LoginRequestDto })
   @UseGuards(LocalAuthGuard) // 🛡️ 우리가 만든 문지기 가드
   @Post('login')
   async login(@User() user : UserEntity) {

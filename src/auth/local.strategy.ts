@@ -9,6 +9,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private authService: AuthService) {
     super({usernameField:'email'});// 기본값은 username이므로 email로 변경
   }
+
   async validate(email : string,password: string){
 
     const user = await this.authService.validateUser(email,password); // AuthService의 validateUser 메서드를 호출하여 사용자 인증
