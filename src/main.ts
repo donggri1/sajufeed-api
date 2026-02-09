@@ -11,6 +11,11 @@ import passport from 'passport';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true, //쿠키 헤더 주고받는허용
+  });
   app.use(cookieParser());
 
   app.use(
