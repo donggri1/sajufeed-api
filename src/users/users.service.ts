@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { JoinRequestDto } from './dto/join.request.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserDto } from './dto/updateUser.request.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
@@ -15,13 +15,6 @@ export class UsersService {
   constructor(
     @InjectRepository(User) private usersRepository: Repository<User>,
   ) {}
-  create(createUserDto: JoinRequestDto) {
-    return 'This action adds a new user';
-  }
-
-  findAll() {
-    return `This action returns all users`;
-  }
 
   async findOne(id: number): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
@@ -31,12 +24,8 @@ export class UsersService {
     return user;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
+  async updateProfile(data: UpdateUserDto) {
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
   }
 
   async join(data: JoinRequestDto) {
