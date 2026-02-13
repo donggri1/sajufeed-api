@@ -25,7 +25,15 @@ export class UsersService {
   }
 
   async updateProfile(data: UpdateUserDto) {
+    const { email,  birthDate, birthTime, birthTimeUnknown, gender, calendarType, birthPlace } = data;
 
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if(!user){
+      throw new NotFoundException('존재하지 않는 이메일입니다.');
+      return false;
+    }
+    await this.usersRepository.update(user.id,{birthDate, birthTime, birthTimeUnknown, gender, calendarType, birthPlace});
+    return true;
   }
 
   async join(data: JoinRequestDto) {
