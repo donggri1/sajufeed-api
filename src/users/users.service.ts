@@ -14,7 +14,7 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   constructor(
     @InjectRepository(User) private usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   async findOne(id: number): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
@@ -24,16 +24,25 @@ export class UsersService {
     return user;
   }
 
-  async updateProfile(data: UpdateUserDto) {
-    const { email,  birthDate, birthTime, birthTimeUnknown, gender, calendarType, birthPlace } = data;
+  async updateProfile(userId: number, data: UpdateUserDto) {
+    const { birthDate, birthTime, birthTimeUnknown, gender, calendarType, birthPlace } = data;
 
-    const user = await this.usersRepository.findOne({ where: { email } });
-    if(!user){
-      throw new NotFoundException('존재하지 않는 이메일입니다.');
-      return false;
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
-    await this.usersRepository.update(user.id,{birthDate, birthTime, birthTimeUnknown, gender, calendarType, birthPlace});
-    return true;
+
+    await this.usersRepository.update(userId, {
+      birthDate,
+      birthTime,
+      birthTimeUnknown,
+      gender,
+      calendarType,
+      birthPlace,
+    });
+
+    // 업데이트된 사용자 정보 반환
+    return this.usersRepository.findOne({ where: { id: userId } });
   }
 
   async join(data: JoinRequestDto) {
