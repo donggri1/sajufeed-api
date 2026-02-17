@@ -3,8 +3,14 @@ import { FortuneController } from './fortune.controller';
 import { FortuneService } from './fortune.service';
 import { UsersModule } from '../users/users.module';
 
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { DailyFortune } from './entities/daily-fortune.entity';
+
 @Module({
-    imports: [UsersModule],
+    imports: [
+        TypeOrmModule.forFeature([DailyFortune]),
+        UsersModule
+    ],
     controllers: [FortuneController],
     providers: [FortuneService],
 })
