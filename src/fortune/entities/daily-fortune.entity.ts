@@ -4,10 +4,12 @@ import {
     Column,
     CreateDateColumn,
     ManyToOne,
+    OneToOne,
     JoinColumn,
     Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { FortuneWebtoon } from './fortune-webtoon.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 @Entity('daily_fortune')
@@ -64,6 +66,13 @@ export class DailyFortune {
     @ApiProperty({ description: '행운의 방향', example: 'East' })
     @Column({ type: 'varchar', length: 50 })
     luckyDirection: string;
+
+    @ApiProperty({ description: '상세 운세 분석', example: '오늘의 재물운은...' })
+    @Column({ type: 'text', nullable: true })
+    details: string | null;
+
+    @OneToOne(() => FortuneWebtoon, (webtoon) => webtoon.dailyFortune)
+    webtoon: FortuneWebtoon;
 
     @ApiProperty({ description: '생성 일시' })
     @CreateDateColumn()

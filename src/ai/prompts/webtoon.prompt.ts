@@ -1,0 +1,68 @@
+/**
+ * 웹툰 스토리보드 생성 프롬프트
+ * 상세 운세 분석(details)을 기반으로 4장짜리 만화 콘티를 생성
+ */
+export const WEBTOON_STORYBOARD_PROMPT = (details: string) => `
+당신은 전문 만화 스토리보드 작가입니다.
+아래 운세 분석 내용을 바탕으로 4페이지짜리 4컷 만화의 스토리보드를 작성해주세요.
+
+운세 분석:
+${details}
+
+각 페이지는 4컷으로 구성되며, 하루의 흐름(아침→점심→저녁→밤)을 따라갑니다.
+귀여운 캐릭터가 운세 내용을 체험하는 스토리로 만들어주세요.
+
+반드시 아래의 JSON 형식으로만 응답하세요:
+{
+  "title": "웹툰 제목 (재미있고 짧게)",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "theme": "아침 - 하루의 시작",
+      "description": "4컷 만화의 전체 장면 설명 (각 컷의 내용을 자세히 묘사, 대사 포함, 200자 이상)"
+    },
+    {
+      "pageNumber": 2,
+      "theme": "점심 - 운세의 전개",
+      "description": "..."
+    },
+    {
+      "pageNumber": 3,
+      "theme": "저녁 - 클라이맥스",
+      "description": "..."
+    },
+    {
+      "pageNumber": 4,
+      "theme": "밤 - 마무리와 교훈",
+      "description": "..."
+    }
+  ]
+}
+`;
+
+/**
+ * 웹툰 이미지 생성 프롬프트
+ * 스토리보드의 한 페이지를 4컷 만화 이미지로 변환
+ */
+export const WEBTOON_IMAGE_PROMPT = (pageDescription: string, pageNumber: number) => `
+Create a cute Korean-style 4-panel vertical comic strip (4컷 만화).
+
+Page ${pageNumber} of 4.
+
+Scene description:
+${pageDescription}
+
+Style requirements:
+- Cute chibi/kawaii art style with big expressive eyes
+- Soft pastel color palette
+- Clean line art
+- 4 panels arranged vertically (top to bottom)
+- Each panel clearly separated with borders
+- Korean text for speech bubbles
+- White background between panels
+- The character is a cute young person in casual clothes
+- Expressive emotions and dynamic poses
+- Simple but charming backgrounds
+
+Important: Generate ONLY the 4-panel comic image. No text outside the panels.
+`;

@@ -1,10 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
+import { WebtoonAgentService } from '../ai/webtoon-agent.service';
 import { DAILY_FORTUNE_PROMPT } from '../ai/prompts/daily-fortune.prompt';
 import { DailyFortune } from './entities/daily-fortune.entity';
+import { FortuneWebtoon, WebtoonStatus } from './entities/fortune-webtoon.entity';
+import { FortuneWebtoonPanel } from './entities/fortune-webtoon-panel.entity';
 
 @Injectable()
 export class FortuneService {
@@ -13,8 +16,13 @@ export class FortuneService {
     constructor(
         private readonly aiService: AiService,
         private readonly usersService: UsersService,
+        private readonly webtoonAgentService: WebtoonAgentService,
         @InjectRepository(DailyFortune)
         private readonly dailyFortuneRepository: Repository<DailyFortune>,
+        @InjectRepository(FortuneWebtoon)
+        private readonly webtoonRepository: Repository<FortuneWebtoon>,
+        @InjectRepository(FortuneWebtoonPanel)
+        private readonly panelRepository: Repository<FortuneWebtoonPanel>,
     ) { }
 
     async getDailyFortune(userId: number) {
@@ -83,5 +91,120 @@ export class FortuneService {
             this.logger.error(`Gemini AI 분석 실패: ${error.message}`);
             throw error;
         }
+    }
+
+    /**
+     * 웹툰 생성
+     */
+    async createWebtoon(fortuneId: number, userId: number) {
+        // 1. 운세 조회
+        const fortune = await this.dailyFortuneRepository.findOne({
+            where: { id: fortuneId, user: { id: userId } },
+        });
+
+        if (!fortune) {
+            throw new NotFoundException('운세를 찾을 수 없습니다.');
+        }
+
+        if (!fortune.details) {
+            throw new NotFoundException('상세 분석이 없는 운세입니다.');
+        }
+
+        // 2. 이미 생성된 웹툰이 있는지 확인
+        const existingWebtoon = await this.webtoonRepository.findOne({
+            where: { dailyFortuneId: fortuneId },
+            relations: ['panels'],
+        });
+
+        if (existingWebtoon && existingWebtoon.status === WebtoonStatus.COMPLETED) {
+            return existingWebtoon;
+        }
+
+        // 3. 웹툰 레코드 생성 (pending)
+        const webtoon = this.webtoonRepository.create({
+            dailyFortuneId: fortuneId,
+            title: '생성 중...',
+            status: WebtoonStatus.GENERATING,
+        });
+        await this.webtoonRepository.save(webtoon);
+
+        try {
+            // 4. AI로 웹툰 생성
+            this.logger.log(`웹툰 생성 시작... FortuneID: ${fortuneId}`);
+            const result = await this.webtoonAgentService.generateWebtoon(fortune.details);
+
+            // 5. 제목 업데이트
+            webtoon.title = result.title;
+
+            // 6. 패널(이미지) 저장
+            const panels: FortuneWebtoonPanel[] = [];
+            for (const panelData of result.panels) {
+                const panel = this.panelRepository.create({
+                    webtoonId: webtoon.id,
+                    pageNumber: panelData.pageNumber,
+                    imagePath: panelData.imageData, // base64 또는 URL
+                    description: panelData.description,
+                });
+                panels.push(panel);
+            }
+            await this.panelRepository.save(panels);
+
+            // 7. 상태 업데이트
+            webtoon.status = WebtoonStatus.COMPLETED;
+            webtoon.panels = panels;
+            await this.webtoonRepository.save(webtoon);
+
+            this.logger.log(`웹툰 생성 완료! WebtoonID: ${webtoon.id}`);
+            return webtoon;
+        } catch (error) {
+            // 실패 시 상태 업데이트
+            webtoon.status = WebtoonStatus.FAILED;
+            await this.webtoonRepository.save(webtoon);
+            this.logger.error(`웹툰 생성 실패: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * 웹툰 조회
+     */
+    async getWebtoon(fortuneId: number, userId: number) {
+        const fortune = await this.dailyFortuneRepository.findOne({
+            where: { id: fortuneId, user: { id: userId } },
+        });
+
+        if (!fortune) {
+            throw new NotFoundException('운세를 찾을 수 없습니다.');
+        }
+
+        const webtoon = await this.webtoonRepository.findOne({
+            where: { dailyFortuneId: fortuneId },
+            relations: ['panels'],
+        });
+
+        return webtoon;
+    }
+
+    /**
+     * 운세 히스토리 (페이지네이션)
+     */
+    async getFortuneHistory(userId: number, page: number = 1, limit: number = 10) {
+        const [items, total] = await this.dailyFortuneRepository.findAndCount({
+            where: { user: { id: userId } },
+            order: { date: 'DESC' },
+            relations: ['webtoon'],
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+
+        return {
+            items,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 }
