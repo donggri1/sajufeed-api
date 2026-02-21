@@ -94,7 +94,7 @@ export class FortuneService {
     }
 
     /**
-     * 웹툰 생성
+     * 웹툰 생성 (비동기 - 즉시 응답)
      */
     async createWebtoon(fortuneId: number, userId: number) {
         // 1. 운세 조회
@@ -116,11 +116,22 @@ export class FortuneService {
             relations: ['panels'],
         });
 
+        // 이미 완료됨
         if (existingWebtoon && existingWebtoon.status === WebtoonStatus.COMPLETED) {
             return existingWebtoon;
         }
 
-        // 3. 웹툰 레코드 생성 (pending)
+        // 이미 생성 중 → 중복 요청 방지
+        if (existingWebtoon && existingWebtoon.status === WebtoonStatus.GENERATING) {
+            return existingWebtoon;
+        }
+
+        // 실패한 경우 → 기존 레코드 삭제 후 재생성
+        if (existingWebtoon && existingWebtoon.status === WebtoonStatus.FAILED) {
+            await this.webtoonRepository.remove(existingWebtoon);
+        }
+
+        // 3. 웹툰 레코드 생성 (generating)
         const webtoon = this.webtoonRepository.create({
             dailyFortuneId: fortuneId,
             title: '생성 중...',
@@ -128,40 +139,46 @@ export class FortuneService {
         });
         await this.webtoonRepository.save(webtoon);
 
+        // 4. 백그라운드에서 AI 생성 (fire-and-forget → 즉시 응답)
+        this.generateWebtoonInBackground(webtoon.id, fortune.details);
+
+        return webtoon;
+    }
+
+    /**
+     * 백그라운드 웹툰 생성 (await 하지 않음)
+     */
+    private async generateWebtoonInBackground(webtoonId: number, details: string) {
         try {
-            // 4. AI로 웹툰 생성
-            this.logger.log(`웹툰 생성 시작... FortuneID: ${fortuneId}`);
-            const result = await this.webtoonAgentService.generateWebtoon(fortune.details);
+            this.logger.log(`[백그라운드] 웹툰 생성 시작... WebtoonID: ${webtoonId}`);
+            const result = await this.webtoonAgentService.generateWebtoon(details);
 
-            // 5. 제목 업데이트
-            webtoon.title = result.title;
-
-            // 6. 패널(이미지) 저장
+            // 패널(이미지) 저장
             const panels: FortuneWebtoonPanel[] = [];
             for (const panelData of result.panels) {
                 const panel = this.panelRepository.create({
-                    webtoonId: webtoon.id,
+                    webtoonId: webtoonId,
                     pageNumber: panelData.pageNumber,
-                    imagePath: panelData.imageData, // base64 또는 URL
+                    imagePath: panelData.imageData,
                     description: panelData.description,
                 });
                 panels.push(panel);
             }
             await this.panelRepository.save(panels);
 
-            // 7. 상태 업데이트
-            webtoon.status = WebtoonStatus.COMPLETED;
-            webtoon.panels = panels;
-            await this.webtoonRepository.save(webtoon);
+            // 상태 완료 (.update로 cascade 우회)
+            await this.webtoonRepository.update(webtoonId, {
+                title: result.title,
+                status: WebtoonStatus.COMPLETED,
+            });
 
-            this.logger.log(`웹툰 생성 완료! WebtoonID: ${webtoon.id}`);
-            return webtoon;
+            this.logger.log(`[백그라운드] 웹툰 생성 완료! WebtoonID: ${webtoonId}`);
         } catch (error) {
-            // 실패 시 상태 업데이트
-            webtoon.status = WebtoonStatus.FAILED;
-            await this.webtoonRepository.save(webtoon);
-            this.logger.error(`웹툰 생성 실패: ${error.message}`);
-            throw error;
+            // 실패 시 상태 업데이트 (.update로 cascade 우회)
+            await this.webtoonRepository.update(webtoonId, {
+                status: WebtoonStatus.FAILED,
+            });
+            this.logger.error(`[백그라운드] 웹툰 생성 실패: ${error.message}`);
         }
     }
 
