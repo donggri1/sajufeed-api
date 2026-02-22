@@ -3,6 +3,7 @@ import { AiService } from './ai.service';
 import {
     WEBTOON_STORYBOARD_PROMPT,
     WEBTOON_IMAGE_PROMPT,
+    CharacterInfo,
 } from './prompts/webtoon.prompt';
 
 export interface StoryboardPage {
@@ -13,6 +14,7 @@ export interface StoryboardPage {
 
 export interface Storyboard {
     title: string;
+    characterDesign: string;
     pages: StoryboardPage[];
 }
 
@@ -31,9 +33,9 @@ export class WebtoonAgentService {
     /**
      * Step 1: 상세 운세를 바탕으로 스토리보드 생성
      */
-    async generateStoryboard(details: string): Promise<Storyboard> {
+    async generateStoryboard(details: string, characterInfo?: CharacterInfo): Promise<Storyboard> {
         this.logger.log('스토리보드 생성 시작...');
-        const prompt = WEBTOON_STORYBOARD_PROMPT(details);
+        const prompt = WEBTOON_STORYBOARD_PROMPT(details, characterInfo);
         const response = await this.aiService.analyzeSaju(prompt);
 
         // JSON 파싱
@@ -42,15 +44,16 @@ export class WebtoonAgentService {
         const storyboard: Storyboard = JSON.parse(cleanJson);
 
         this.logger.log(`스토리보드 생성 완료: "${storyboard.title}" (${storyboard.pages.length}페이지)`);
+        this.logger.log(`캐릭터 디자인: ${storyboard.characterDesign}`);
         return storyboard;
     }
 
     /**
      * Step 2: 스토리보드의 각 페이지를 이미지로 생성
      */
-    async generatePanelImage(page: StoryboardPage): Promise<GeneratedPanel> {
+    async generatePanelImage(page: StoryboardPage, characterDesign: string): Promise<GeneratedPanel> {
         this.logger.log(`페이지 ${page.pageNumber} 이미지 생성 중... (${page.theme})`);
-        const prompt = WEBTOON_IMAGE_PROMPT(page.description, page.pageNumber);
+        const prompt = WEBTOON_IMAGE_PROMPT(page.description, page.pageNumber, characterDesign);
         const imageData = await this.aiService.generateImage(prompt);
 
         this.logger.log(`페이지 ${page.pageNumber} 이미지 생성 완료`);
@@ -64,14 +67,14 @@ export class WebtoonAgentService {
     /**
      * 전체 웹툰 생성 (스토리보드 → 이미지 4장)
      */
-    async generateWebtoon(details: string): Promise<{ title: string; panels: GeneratedPanel[] }> {
+    async generateWebtoon(details: string, characterInfo?: CharacterInfo): Promise<{ title: string; panels: GeneratedPanel[] }> {
         // Step 1: 스토리보드
-        const storyboard = await this.generateStoryboard(details);
+        const storyboard = await this.generateStoryboard(details, characterInfo);
 
         // Step 2: 각 페이지 이미지 생성 (순차적으로 - API rate limit 고려)
         const panels: GeneratedPanel[] = [];
         for (const page of storyboard.pages) {
-            const panel = await this.generatePanelImage(page);
+            const panel = await this.generatePanelImage(page, storyboard.characterDesign);
             panels.push(panel);
         }
 

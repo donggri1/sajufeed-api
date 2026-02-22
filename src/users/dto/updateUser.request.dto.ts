@@ -42,9 +42,27 @@ export class UpdateUserDto {
   @IsOptional()
   calendarType: 'solar' | 'lunar';
 
-  @ApiProperty({ description: '출생지 (선택)', example: '서울', nullable: true })
+  @ApiProperty({ description: '이름', example: '홍길동', nullable: true })
   @IsString()
   @IsOptional()
-  @MaxLength(255, { message: '출생지는 255자 이내로 입력해주세요.' })
-  birthPlace: string | null;
+  @MaxLength(50, { message: '이름은 50자 이내로 입력해주세요.' })
+  name: string | null;
+
+  @ApiProperty({ description: '국가 코드 (ISO 3166-1 alpha-2)', example: 'KR', nullable: true })
+  @IsString()
+  @IsOptional()
+  @MaxLength(10, { message: '국가 코드는 10자 이내로 입력해주세요.' })
+  countryCode: string | null;
+
+  @ApiProperty({ description: '지역/주 코드', example: '11', nullable: true })
+  @IsString()
+  @IsOptional()
+  @MaxLength(10, { message: '지역 코드는 10자 이내로 입력해주세요.' })
+  stateCode: string | null;
+
+  @ApiProperty({ description: '도시명', example: '서울', nullable: true })
+  @IsString()
+  @IsOptional()
+  @MaxLength(100, { message: '도시명은 100자 이내로 입력해주세요.' })
+  cityName: string | null;
 }

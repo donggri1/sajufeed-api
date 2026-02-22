@@ -88,10 +88,21 @@ export class User {
   })
   calendarType: 'solar' | 'lunar';
 
-  @ApiProperty({ description: '출생지 (선택)', example: '서울', nullable: true })
-  @ApiProperty({ description: '출생지 (선택)', example: '서울', nullable: true })
-  @Column({ type: 'varchar', length: 255, nullable: true, comment: '출생지 (선택)' })
-  birthPlace: string | null;
+  @ApiProperty({ description: '이름', example: '홍길동', nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true, comment: '이름' })
+  name: string | null;
+
+  @ApiProperty({ description: '국가 코드 (ISO 3166-1 alpha-2)', example: 'KR', nullable: true })
+  @Column({ type: 'varchar', length: 10, nullable: true, comment: '국가 코드 (ISO 3166-1 alpha-2)' })
+  countryCode: string | null;
+
+  @ApiProperty({ description: '지역/주 코드', example: '11', nullable: true })
+  @Column({ type: 'varchar', length: 10, nullable: true, comment: '지역/주 코드' })
+  stateCode: string | null;
+
+  @ApiProperty({ description: '도시명', example: '서울', nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, comment: '도시명' })
+  cityName: string | null;
 
   @OneToMany(() => DailyFortune, (dailyFortune) => dailyFortune.user)
   dailyFortunes: DailyFortune[];

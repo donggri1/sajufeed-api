@@ -25,7 +25,7 @@ export class UsersService {
   }
 
   async updateProfile(userId: number, data: UpdateUserDto) {
-    const { birthDate, birthTime, birthTimeUnknown, gender, calendarType, birthPlace } = data;
+    const { birthDate, birthTime, birthTimeUnknown, gender, calendarType, name, countryCode, stateCode, cityName } = data;
 
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -38,7 +38,10 @@ export class UsersService {
       birthTimeUnknown,
       gender,
       calendarType,
-      birthPlace,
+      name,
+      countryCode,
+      stateCode,
+      cityName,
     });
 
     // 업데이트된 사용자 정보 반환

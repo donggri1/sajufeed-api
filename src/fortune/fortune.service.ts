@@ -8,6 +8,7 @@ import { DAILY_FORTUNE_PROMPT } from '../ai/prompts/daily-fortune.prompt';
 import { DailyFortune } from './entities/daily-fortune.entity';
 import { FortuneWebtoon, WebtoonStatus } from './entities/fortune-webtoon.entity';
 import { FortuneWebtoonPanel } from './entities/fortune-webtoon-panel.entity';
+import { Country, State } from 'country-state-city';
 
 @Injectable()
 export class FortuneService {
@@ -58,7 +59,23 @@ export class FortuneService {
 
         // 2. 없으면 AI로 생성
         // 유저 사주 정보 구성
-        const sajuInfo = `성별: ${user.gender === 'male' ? '남성' : '여성'}, 생년월일: ${user.birthDate}, 출생시간: ${user.birthTimeUnknown ? '모름' : user.birthTime}, 달력방식: ${user.calendarType}`;
+        // 국가/지역 코드를 이름으로 변환
+        const countryName = user.countryCode
+            ? Country.getCountryByCode(user.countryCode)?.name ?? user.countryCode
+            : null;
+        const stateName = user.countryCode && user.stateCode
+            ? State.getStateByCodeAndCountry(user.stateCode, user.countryCode)?.name ?? user.stateCode
+            : null;
+        const locationParts = [countryName, stateName, user.cityName].filter(Boolean);
+
+        const sajuInfo = [
+            user.name ? `이름: ${user.name}` : null,
+            `성별: ${user.gender === 'male' ? '남성' : '여성'}`,
+            `생년월일: ${user.birthDate}`,
+            `출생시간: ${user.birthTimeUnknown ? '모름' : user.birthTime}`,
+            `달력방식: ${user.calendarType}`,
+            locationParts.length > 0 ? `출생지: ${locationParts.join(' ')}` : null,
+        ].filter(Boolean).join(', ');
 
         // 분리된 프롬프트 템플릿 사용
         const prompt = DAILY_FORTUNE_PROMPT(sajuInfo);
@@ -110,6 +127,11 @@ export class FortuneService {
             throw new NotFoundException('상세 분석이 없는 운세입니다.');
         }
 
+        
+        const user = await this.usersService.findOne(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
         // 2. 이미 생성된 웹툰이 있는지 확인
         const existingWebtoon = await this.webtoonRepository.findOne({
             where: { dailyFortuneId: fortuneId },
@@ -139,8 +161,26 @@ export class FortuneService {
         });
         await this.webtoonRepository.save(webtoon);
 
+        // 유저 정보로 캐릭터 정보 구성
+        const birthYear = user.birthDate ? new Date(user.birthDate).getFullYear() : null;
+        const age = birthYear ? new Date().getFullYear() - birthYear : null;
+        const countryName = user.countryCode
+            ? Country.getCountryByCode(user.countryCode)?.name ?? user.countryCode
+            : null;
+        const stateName = user.countryCode && user.stateCode
+            ? State.getStateByCodeAndCountry(user.stateCode, user.countryCode)?.name ?? user.stateCode
+            : null;
+        const locationParts = [countryName, stateName, user.cityName].filter(Boolean);
+
+        const characterInfo = {
+            name: user.name,
+            gender: user.gender,
+            age,
+            location: locationParts.length > 0 ? locationParts.join(', ') : null,
+        };
+
         // 4. 백그라운드에서 AI 생성 (fire-and-forget → 즉시 응답)
-        this.generateWebtoonInBackground(webtoon.id, fortune.details);
+        this.generateWebtoonInBackground(webtoon.id, fortune.details, characterInfo);
 
         return webtoon;
     }
@@ -148,11 +188,11 @@ export class FortuneService {
     /**
      * 백그라운드 웹툰 생성 (await 하지 않음)
      */
-    private async generateWebtoonInBackground(webtoonId: number, details: string) {
+    private async generateWebtoonInBackground(webtoonId: number, details: string, characterInfo: { name: string | null; gender: string | null; age: number | null; location: string | null }) {
         try {
             this.logger.log(`[백그라운드] 웹툰 생성 시작... WebtoonID: ${webtoonId}`);
-            const result = await this.webtoonAgentService.generateWebtoon(details);
-
+            const result = await this.webtoonAgentService.generateWebtoon(details, characterInfo);
+                
             // 패널(이미지) 저장
             const panels: FortuneWebtoonPanel[] = [];
             for (const panelData of result.panels) {
