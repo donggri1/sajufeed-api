@@ -9,6 +9,7 @@ import { DailyFortune } from './entities/daily-fortune.entity';
 import { FortuneWebtoon, WebtoonStatus } from './entities/fortune-webtoon.entity';
 import { FortuneWebtoonPanel } from './entities/fortune-webtoon-panel.entity';
 import { Country, State } from 'country-state-city';
+import { getLanguageByCountryCode } from '../common/utils/country-language.util';
 
 @Injectable()
 export class FortuneService {
@@ -77,8 +78,11 @@ export class FortuneService {
             locationParts.length > 0 ? `출생지: ${locationParts.join(' ')}` : null,
         ].filter(Boolean).join(', ');
 
+        // 국가 기반 언어 결정
+        const language = getLanguageByCountryCode(user.countryCode);
+
         // 분리된 프롬프트 템플릿 사용
-        const prompt = DAILY_FORTUNE_PROMPT(sajuInfo);
+        const prompt = DAILY_FORTUNE_PROMPT(sajuInfo, language);
 
         try {
             this.logger.log(`AI 분석 요청 시작... UserID: ${userId}`);
@@ -180,7 +184,8 @@ export class FortuneService {
         };
 
         // 4. 백그라운드에서 AI 생성 (fire-and-forget → 즉시 응답)
-        this.generateWebtoonInBackground(webtoon.id, fortune.details, characterInfo);
+        const webtoonLanguage = getLanguageByCountryCode(user.countryCode);
+        this.generateWebtoonInBackground(webtoon.id, fortune.details, characterInfo, webtoonLanguage);
 
         return webtoon;
     }
@@ -188,10 +193,10 @@ export class FortuneService {
     /**
      * 백그라운드 웹툰 생성 (await 하지 않음)
      */
-    private async generateWebtoonInBackground(webtoonId: number, details: string, characterInfo: { name: string | null; gender: string | null; age: number | null; location: string | null }) {
+    private async generateWebtoonInBackground(webtoonId: number, details: string, characterInfo: { name: string | null; gender: string | null; age: number | null; location: string | null }, language?: string | null) {
         try {
             this.logger.log(`[백그라운드] 웹툰 생성 시작... WebtoonID: ${webtoonId}`);
-            const result = await this.webtoonAgentService.generateWebtoon(details, characterInfo);
+            const result = await this.webtoonAgentService.generateWebtoon(details, characterInfo, language);
                 
             // 패널(이미지) 저장
             const panels: FortuneWebtoonPanel[] = [];

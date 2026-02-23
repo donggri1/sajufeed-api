@@ -1,10 +1,10 @@
 /**
  * 오늘의 운세 분석을 위한 AI 프롬프트 템플릿
  */
-export const DAILY_FORTUNE_PROMPT = (sajuInfo: string) => `
+export const DAILY_FORTUNE_PROMPT = (sajuInfo: string, language?: string | null) => `
 당신은 전문 사주 분석가입니다. 다음 사용자의 사주 정보를 바탕으로 오늘의 운세를 분석해주세요.
 사용자 정보: [${sajuInfo}]
-
+${language ? `\n중요: 모든 텍스트 값(summary, description, luckyColor, luckyItem, luckyDirection, details)을 반드시 ${language}(으)로 작성해주세요.\n` : ''}
 반드시 아래의 JSON 형식으로만 응답하세요. 다른 설명은 생략하세요:
 {
   "totalScore": 0~100 숫자,

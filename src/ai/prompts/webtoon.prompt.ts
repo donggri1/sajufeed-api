@@ -9,7 +9,7 @@ export interface CharacterInfo {
     location: string | null;
 }
 
-export const WEBTOON_STORYBOARD_PROMPT = (details: string, characterInfo?: CharacterInfo) => {
+export const WEBTOON_STORYBOARD_PROMPT = (details: string, characterInfo?: CharacterInfo, language?: string | null) => {
     const charParts = [
         characterInfo?.name ? `이름: ${characterInfo.name}` : null,
         characterInfo?.gender ? `성별: ${characterInfo.gender === 'male' ? '남성' : '여성'}` : null,
@@ -21,6 +21,10 @@ export const WEBTOON_STORYBOARD_PROMPT = (details: string, characterInfo?: Chara
         ? `\n주인공 정보:\n${charParts.join(', ')}\n위 정보를 반영하여 캐릭터의 외형과 배경을 설정해주세요.\n`
         : '';
 
+    const langInstruction = language
+        ? `\n중요: title, theme, description 등 모든 텍스트를 반드시 ${language}(으)로 작성해주세요. (characterDesign만 영어로 작성)\n`
+        : '';
+
     return `
 당신은 전문 만화 스토리보드 작가입니다.
 아래 운세 분석 내용을 바탕으로 4페이지짜리 4컷 만화의 스토리보드를 작성해주세요.
@@ -30,7 +34,7 @@ ${details}
 ${charSection}
 각 페이지는 4컷으로 구성되며, 하루의 흐름(아침→점심→저녁→밤)을 따라갑니다.
 귀여운 캐릭터가 운세 내용을 체험하는 스토리로 만들어주세요.
-
+${langInstruction}
 반드시 아래의 JSON 형식으로만 응답하세요:
 {
   "title": "웹툰 제목 (재미있고 짧게)",

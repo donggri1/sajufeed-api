@@ -33,9 +33,9 @@ export class WebtoonAgentService {
     /**
      * Step 1: 상세 운세를 바탕으로 스토리보드 생성
      */
-    async generateStoryboard(details: string, characterInfo?: CharacterInfo): Promise<Storyboard> {
+    async generateStoryboard(details: string, characterInfo?: CharacterInfo, language?: string | null): Promise<Storyboard> {
         this.logger.log('스토리보드 생성 시작...');
-        const prompt = WEBTOON_STORYBOARD_PROMPT(details, characterInfo);
+        const prompt = WEBTOON_STORYBOARD_PROMPT(details, characterInfo, language);
         const response = await this.aiService.analyzeSaju(prompt);
 
         // JSON 파싱
@@ -67,9 +67,9 @@ export class WebtoonAgentService {
     /**
      * 전체 웹툰 생성 (스토리보드 → 이미지 4장)
      */
-    async generateWebtoon(details: string, characterInfo?: CharacterInfo): Promise<{ title: string; panels: GeneratedPanel[] }> {
+    async generateWebtoon(details: string, characterInfo?: CharacterInfo, language?: string | null): Promise<{ title: string; panels: GeneratedPanel[] }> {
         // Step 1: 스토리보드
-        const storyboard = await this.generateStoryboard(details, characterInfo);
+        const storyboard = await this.generateStoryboard(details, characterInfo, language);
 
         // Step 2: 각 페이지 이미지 생성 (순차적으로 - API rate limit 고려)
         const panels: GeneratedPanel[] = [];
