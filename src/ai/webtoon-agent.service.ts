@@ -43,6 +43,7 @@ export class WebtoonAgentService {
         const cleanJson = jsonMatch ? jsonMatch[0] : response;
         const storyboard: Storyboard = JSON.parse(cleanJson);
 
+        this.logger.log(`스토리보드: ${JSON.stringify(storyboard)}`);
         this.logger.log(`스토리보드 생성 완료: "${storyboard.title}" (${storyboard.pages.length}페이지)`);
         this.logger.log(`캐릭터 디자인: ${storyboard.characterDesign}`);
         return storyboard;

@@ -10,8 +10,8 @@ import { GeminiProvider } from './providers/gemini.provider';
     providers: [
         {
             provide: 'AI_PROVIDER',
-            // useClass: GeminiProvider,
-            useClass: OpenAiProvider, // GeminiProvider -> OpenAiProvider 교체
+            useClass: GeminiProvider,
+            // useClass: OpenAiProvider, // GeminiProvider -> OpenAiProvider 교체
         },
         AiService,
     ],
