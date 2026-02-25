@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { AiProvider } from '../interfaces/ai-provider.interface';
+import { FileStorageUtil } from '../../utils/file-storage.util';
 
 @Injectable()
 export class GeminiProvider implements AiProvider {
@@ -10,7 +11,10 @@ export class GeminiProvider implements AiProvider {
     private textModel: GenerativeModel;
     private imageModel: GenerativeModel;
 
-    constructor(private configService: ConfigService) {
+    constructor(
+        private configService: ConfigService,
+        private fileStorageUtil: FileStorageUtil,
+    ) {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
         if (!apiKey) {
             this.logger.error('GEMINI_API_KEY is not defined in environment variables');
@@ -61,13 +65,31 @@ export class GeminiProvider implements AiProvider {
 
     async generateImage(prompt: string): Promise<string> {
         try {
-            // 이미지 생성을 지원하는 모델의 경우 generateContent 내에서 멀티모달 출력을 생성하거나 
-            // 별도의 API를 호출할 수 있음. 현재 SDK 버전에서는 텍스트 프롬프트를 통한 이미지 생성이 
-            // 모델별로 상이할 수 있으므로 기본 연동 구조만 마련.
+            // gemini-3-pro-image-preview 모델은 요청을 보내면 이미지를 생성하여 Base64로 반환합니다.
             const result = await this.imageModel.generateContent(prompt);
-            const response = await result.response;
-            // 이미지 데이터(base64 등)가 포함된 응답을 반환한다고 가정
-            return response.text();
+            const candidates = result.response.candidates;
+
+            if (!candidates || candidates.length === 0) {
+                throw new Error('No candidates returned from Gemini');
+            }
+
+            const parts = candidates[0].content.parts;
+            if (!parts || parts.length === 0) {
+                throw new Error('No parts returned in Gemini response');
+            }
+
+            // Gemini 이미지 모델은 보통 parts[0].inlineData.data 에 Base64 문자열을 내려줍니다.
+            const inlineData = parts[0].inlineData;
+            if (!inlineData || !inlineData.data) {
+                this.logger.error('Unexpected Gemini response structure: ' + JSON.stringify(parts));
+                throw new Error('No image data (Base64) found in Gemini response');
+            }
+
+            const base64Image = inlineData.data;
+
+            // 로컬에 파일로 저장하고 생성된 경로를 받습니다.
+            const localPath = await this.fileStorageUtil.saveFromBase64(base64Image);
+            return localPath;
         } catch (error) {
             this.logger.error(`Error generating image with Gemini: ${error.message}`);
             throw error;
