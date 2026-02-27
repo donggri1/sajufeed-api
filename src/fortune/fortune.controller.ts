@@ -26,6 +26,24 @@ export class FortuneController {
         return this.fortuneService.createDailyFortune(userId);
     }
 
+    @Get('new-year/:year')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '신년운세 조회' })
+    async getNewYearFortune(@Param('year') year: string, @Request() req) {
+        const userId = req.user?.id || req.user?.userId || 1;
+        return this.fortuneService.getNewYearFortune(userId, year);
+    }
+
+    @Post('new-year/:year')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '신년운세 생성' })
+    async createNewYearFortune(@Param('year') year: string, @Request() req) {
+        const userId = req.user?.id || req.user?.userId || 1;
+        return this.fortuneService.createNewYearFortune(userId, year);
+    }
+
     @Post(':id/webtoon')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()

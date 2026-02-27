@@ -5,9 +5,11 @@ import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
 import { WebtoonAgentService } from '../ai/webtoon-agent.service';
 import { DAILY_FORTUNE_PROMPT } from '../ai/prompts/daily-fortune.prompt';
+import { NEW_YEAR_FORTUNE_PROMPT } from '../ai/prompts/new-year-fortune.prompt';
 import { DailyFortune } from './entities/daily-fortune.entity';
 import { FortuneWebtoon, WebtoonStatus } from './entities/fortune-webtoon.entity';
 import { FortuneWebtoonPanel } from './entities/fortune-webtoon-panel.entity';
+import { NewYearFortune } from './entities/new-year-fortune.entity';
 import { Country, State } from 'country-state-city';
 import { getLanguageByCountryCode } from '../common/utils/country-language.util';
 
@@ -21,6 +23,8 @@ export class FortuneService {
         private readonly webtoonAgentService: WebtoonAgentService,
         @InjectRepository(DailyFortune)
         private readonly dailyFortuneRepository: Repository<DailyFortune>,
+        @InjectRepository(NewYearFortune)
+        private readonly newYearFortuneRepository: Repository<NewYearFortune>,
         @InjectRepository(FortuneWebtoon)
         private readonly webtoonRepository: Repository<FortuneWebtoon>,
         @InjectRepository(FortuneWebtoonPanel)
@@ -114,6 +118,83 @@ export class FortuneService {
         }
     }
 
+    async getNewYearFortune(userId: number, year: string) {
+        return await this.newYearFortuneRepository.findOne({
+            where: {
+                user: { id: userId },
+                year: year,
+            },
+        });
+    }
+
+    async createNewYearFortune(userId: number, year: string) {
+        const user = await this.usersService.findOne(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        // 1. 이미 존재하는지 확인
+        const existingFortune = await this.newYearFortuneRepository.findOne({
+            where: {
+                user: { id: userId },
+                year: year,
+            },
+        });
+
+        if (existingFortune) {
+            return existingFortune;
+        }
+
+        // 2. 없으면 AI로 생성
+        const countryName = user.countryCode
+            ? Country.getCountryByCode(user.countryCode)?.name ?? user.countryCode
+            : null;
+        const stateName = user.countryCode && user.stateCode
+            ? State.getStateByCodeAndCountry(user.stateCode, user.countryCode)?.name ?? user.stateCode
+            : null;
+        const locationParts = [countryName, stateName, user.cityName].filter(Boolean);
+
+        const sajuInfo = [
+            user.name ? `이름: ${user.name}` : null,
+            `성별: ${user.gender === 'male' ? '남성' : '여성'}`,
+            `생년월일: ${user.birthDate}`,
+            `출생시간: ${user.birthTimeUnknown ? '모름' : user.birthTime}`,
+            `달력방식: ${user.calendarType}`,
+            locationParts.length > 0 ? `출생지: ${locationParts.join(' ')}` : null,
+        ].filter(Boolean).join(', ');
+
+        const language = getLanguageByCountryCode(user.countryCode);
+        const prompt = NEW_YEAR_FORTUNE_PROMPT(sajuInfo, year, language);
+
+        try {
+            this.logger.log(`신년운세 AI 분석 요청 시작... UserID: ${userId}, Year: ${year}`);
+            const startTime = Date.now();
+
+            const aiResponse = await this.aiService.analyzeSaju(prompt);
+
+            const endTime = Date.now();
+            this.logger.log(`신년운세 AI 분석 완료! 소요시간: ${endTime - startTime}ms`);
+
+            const jsonMatch = aiResponse.match(/[\{].*[\}]/s);
+            const cleanJson = jsonMatch ? jsonMatch[0] : aiResponse;
+            const result = JSON.parse(cleanJson);
+
+            // 3. DB에 저장
+            const newFortune = this.newYearFortuneRepository.create({
+                user: user,
+                year: year,
+                ...result,
+            });
+
+            await this.newYearFortuneRepository.save(newFortune);
+
+            return newFortune;
+        } catch (error) {
+            this.logger.error(`신년운세 AI 분석 실패: ${error.message}`);
+            throw error;
+        }
+    }
+
     /**
      * 웹툰 생성 (비동기 - 즉시 응답)
      */
@@ -131,7 +212,7 @@ export class FortuneService {
             throw new NotFoundException('상세 분석이 없는 운세입니다.');
         }
 
-        
+
         const user = await this.usersService.findOne(userId);
         if (!user) {
             throw new Error('User not found');
@@ -197,7 +278,7 @@ export class FortuneService {
         try {
             this.logger.log(`[백그라운드] 웹툰 생성 시작... WebtoonID: ${webtoonId}`);
             const result = await this.webtoonAgentService.generateWebtoon(details, characterInfo, language);
-                
+
             // 패널(이미지) 저장
             const panels: FortuneWebtoonPanel[] = [];
             for (const panelData of result.panels) {

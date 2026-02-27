@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { DailyFortune } from '../../fortune/entities/daily-fortune.entity';
+import { NewYearFortune } from '../../fortune/entities/new-year-fortune.entity';
 
 @Entity({ name: 'users' })
 export class User {
@@ -106,5 +107,8 @@ export class User {
 
   @OneToMany(() => DailyFortune, (dailyFortune) => dailyFortune.user)
   dailyFortunes: DailyFortune[];
+
+  @OneToMany(() => NewYearFortune, (newYearFortune) => newYearFortune.user)
+  newYearFortunes: NewYearFortune[];
 
 }
